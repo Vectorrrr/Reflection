@@ -5,7 +5,7 @@ package model;
  */
 public class Test {
 
-
+    private Test2 test2;
     private int firstField;
     private String secondField;
 

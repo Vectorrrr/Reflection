@@ -5,6 +5,6 @@ import logic.Initializer;
  */
 public class Main {
     public static void main(String[] args){
-        new Initializer().initialaize();
+        new Initializer().initialaize("model.Test");
     }
 }
