@@ -1,11 +1,11 @@
 package logic;
 
+import model.BeanField;
 import model.PrimalType;
 
 import java.lang.reflect.Field;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
-import java.lang.reflect.TypeVariable;
 import java.util.*;
 
 /**
@@ -17,33 +17,40 @@ public class Initializer {
     private final String ERROR_ACCESS_INITIALIZATION = "When I try create instance I have Access Exception";
 
 
-    public void initialaize(String className) {
-        Class c = getClass(className);
-        Object instance = createInstance(c);
-        Deque<String> compositeField = new ArrayDeque<>();
+    public Object initialize(String className) {
+        Class c = getClassOrNullIFException(className);
+        Object instance = createInstanceOrNullIfException(c);
+        Deque<BeanField> compositeField = new ArrayDeque<>();
+
         for (Field field : c.getDeclaredFields()) {
             String name = field.getName();
             String type = field.getType().toString();
             if (!isPrimal(type)) {
-                compositeField.add(type.substring(6));
+                compositeField.add(new BeanField(name, type.substring(6)));
                 continue;
             }
-            //todo May be make this one method, I think no, but I don't know
+            //todo May be make this other method, I think no, but I don't know
             if (containsMethod(c, name)) {
                 Method setter = getSetter(c, name);
                 List<Object> values = getValue(setter);
-                doMethod(setter, values, instance);
+                doMethod(setter, values.toArray(), instance);
                 System.out.println("Init field " + name);
             }
         }
-        for (String s : compositeField) {
-            initialaize(s);
-        }
+        for (BeanField s : compositeField) {
+            String fieldName = s.getFieldName();
+            if (containsMethod(c, fieldName)) {
+                Method setter = getSetter(c, fieldName);
+                doMethod(setter, new Object[]{initialize(s.getFieldType())}, instance);
+                System.out.println("Init field " + s);
+            }
 
+        }
+        return instance;
     }
 
     //todo   How return not null
-    private Class getClass(String className) {
+    private Class getClassOrNullIFException(String className) {
         try {
             return Class.forName(className);
         } catch (ClassNotFoundException e) {
@@ -54,7 +61,7 @@ public class Initializer {
     }
 
     //todo   How return not null
-    private Object createInstance(Class className) {
+    private Object createInstanceOrNullIfException(Class className) {
         try {
             return className.newInstance();
         } catch (InstantiationException e) {
@@ -68,9 +75,9 @@ public class Initializer {
     }
 
     //todo make constant
-    private void doMethod(Method method, List<Object> values, Object c) {
+    private void doMethod(Method method, Object[] values, Object c) {
         try {
-            method.invoke(c, values.toArray());
+            method.invoke(c, values);
         } catch (IllegalAccessException e) {
             e.printStackTrace();
         } catch (InvocationTargetException e) {
@@ -87,7 +94,7 @@ public class Initializer {
         return o;
     }
 
-    //creat next value for instance from console
+    //create next value for instance from console
     private Object getNextInstansType(PrimalType p) {
         Scanner sc = new Scanner(System.in);
         System.out.println("Input the " + p.getWrapsName());
@@ -96,9 +103,8 @@ public class Initializer {
 
     //return PrimalType for one class if Class not Primal return Exception
     private PrimalType getPrimalType(Class s) {
-        String type = s.getTypeName();
         for (PrimalType pt : PrimalType.values()) {
-            if (pt.isThisType(type)) {
+            if (pt.isThisType(s.toString())) {
                 return pt;
             }
         }
